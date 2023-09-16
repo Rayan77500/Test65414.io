@@ -1,1 +1,36 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mon Premier Site</title>
+</head>
+<body>
+    <header>
+        <h1>Mon Site</h1>
+    </header>
+    
+    <nav>
+        <ul>
+            <li><a href="#">Accueil</a></li>
+            <li><a href="#">À Propos</a></li>
+            <li><a href="#">Services</a></li>
+            <li><a href="#">Contact</a></li>
+        </ul>
+    </nav>
+    
+    <main>
+        <section>
+            <h2>Accueil</h2>
+            <p>Bienvenue sur mon site.</p>
+        </section>
+        
+        <section>
+            <h2>À Propos</h2>
+            <p>Safia dit moi si ça marche.</p>
+        </section>
+    </main>
+    
+    <footer>
+        <p>&copy; 2023 Mon Site Web</p>
+    </footer>
+</body>
+</html>
