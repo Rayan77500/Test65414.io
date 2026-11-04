@@ -1,0 +1,129 @@
+W204 DASH - Tableau de bord pour l'écran Android de la Classe C (W204)
+=====================================================================
+
+Fichier à installer : W204Dash.apk (dans ce dossier)
+Compatible : Android 4.1 et plus récent. Aucun compte Google, aucune
+connexion Internet nécessaire.
+
+
+1) COPIER L'APK SUR UNE CLÉ USB
+-------------------------------
+- Prenez une clé USB formatée en FAT32 (le format le plus courant ;
+  les vieux écrans ne lisent pas toujours exFAT ou NTFS).
+- Branchez-la sur l'ordinateur et copiez-y le fichier W204Dash.apk
+  (directement à la racine de la clé, pas dans un dossier : plus simple).
+- Éjectez proprement la clé avant de la retirer.
+
+
+2) AUTORISER LES "SOURCES INCONNUES"
+------------------------------------
+Android bloque par défaut les applis qui ne viennent pas du Play Store.
+
+- Android 4 à 7 : Paramètres > Sécurité > cochez "Sources inconnues".
+- Android 8 et plus : rien à faire à l'avance. Au moment d'installer,
+  Android affiche un message : touchez "Paramètres", activez
+  "Autoriser cette source", puis revenez en arrière.
+
+Sur beaucoup d'écrans chinois, une partie des réglages est protégée par
+un code (souvent 8888, 1234 ou 0000 : voir la notice de l'écran).
+
+
+3) INSTALLER SUR L'ÉCRAN
+------------------------
+- Voiture à l'arrêt, contact mis, branchez la clé sur le port USB de l'écran.
+- Ouvrez l'application de fichiers de l'écran (son nom varie :
+  "Fichiers", "Gestionnaire de fichiers", "File Manager", "Explorer"...).
+- Allez sur la clé USB (souvent "USB", "udisk" ou "usbotg").
+- Touchez W204Dash.apk, puis "Installer", puis "Ouvrir".
+- L'appli "W204 Dash" apparaît ensuite avec les autres applications.
+
+Mise à jour plus tard : installez simplement le nouvel APK par-dessus,
+vos réglages et votre carnet d'entretien sont conservés.
+
+
+4) UTILISATION
+--------------
+L'appli démarre en mode DÉMO : toutes les valeurs sont simulées, pour
+que vous puissiez tout essayer tout de suite.
+
+- Accueil : faites glisser le doigt pour tourner autour de la voiture,
+  pincez pour zoomer, touchez une porte, le capot ou le coffre pour
+  l'ouvrir / le fermer. Double appui = vue par défaut.
+  Widget musique : précédent / lecture-pause / suivant.
+- Véhicule : onglets Ouvrants, Radars, Infos, Entretien.
+- Réglages : couleur, options, boîte de vitesses, source de données,
+  thème, test de connexion.
+- Diagnostic : tout ce que l'appli détecte sur votre écran + journal.
+
+"--" à la place d'une valeur = l'information n'est pas fournie par la
+source choisie. C'est normal, l'appli ne plante pas.
+
+
+5) BRANCHER UN ADAPTATEUR OBD2 BLUETOOTH (ELM327)
+-------------------------------------------------
+- Branchez l'adaptateur sur la prise OBD (sous le volant, côté gauche).
+- Mettez le contact.
+- Dans les réglages Bluetooth d'Android, appairez l'adaptateur
+  (code 1234 ou 0000). Il s'appelle souvent "OBDII", "V-LINK" ou "ELM327".
+- Dans W204 Dash : Réglages > Source de données > OBD2 > Choisir
+  l'adaptateur, puis "Tester la connexion".
+- Attention : les adaptateurs "Bluetooth LE / iPhone" ne sont pas gérés,
+  il faut un modèle Bluetooth classique (le plus courant et le moins cher).
+- En OBD2 standard, la W204 donne en général : vitesse, régime, tension,
+  température moteur. Kilométrage, lave-glace, ceintures et portes ne
+  passent pas par l'OBD2 standard (d'où les "--").
+
+
+6) ESSAYER LES INFOS DE L'ÉCRAN (BOÎTIER CAN)
+--------------------------------------------
+- Réglages > Source de données > "Écran" (ou "Les deux" avec l'OBD2).
+- Ouvrez l'écran Diagnostic : il liste la plateforme de l'écran, les
+  applis liées au véhicule et les "broadcasts" qu'il a trouvés.
+- Ouvrez puis fermez une porte : si une ligne "Reçu ..." apparaît dans
+  le journal, l'appli capte quelque chose.
+- Touchez "Enregistrer" : un fichier w204dash_diagnostic_....txt est créé
+  dans le dossier Téléchargements (Download). Envoyez-le-moi : il me
+  permettra de brancher précisément les infos de VOTRE écran.
+
+
+7) REMPLACER LA VOITURE 3D
+--------------------------
+La voiture actuelle est un modèle PROVISOIRE simplifié.
+- Copiez un fichier .glb sur la clé USB.
+- Réglages > Modèle 3D > "Importer un .glb" et choisissez le fichier.
+- Si la voiture est mal orientée : "Tourner de 90°" (plusieurs fois si besoin).
+- Pour que portes, capot et coffre s'ouvrent, les pièces du .glb doivent
+  s'appeler door_fl, door_fr, door_rl, door_rr, hood, trunk
+  (ou contenir "porte", "capot", "coffre").
+- Les fichiers compressés "Draco" ne sont pas acceptés.
+- "Modèle intégré" pour revenir à la voiture d'origine.
+
+
+8) AFFICHER LE TITRE DE LA MUSIQUE (Android 5 et plus)
+-----------------------------------------------------
+Les boutons lecture / pause / suivant marchent tout de suite.
+Pour voir le titre et l'artiste : Réglages > Musique > "Autoriser
+l'affichage des titres", puis activez "W204 Dash" dans la liste.
+
+
+9) SI ÇA NE MARCHE PAS
+----------------------
+- "Application non installée" : désinstallez une ancienne version de
+  W204 Dash, vérifiez qu'il reste de la place, recopiez l'APK.
+- "Erreur d'analyse du paquet" : le fichier est abîmé (recopiez-le) ou
+  l'écran a une version d'Android trop ancienne (avant 4.1).
+- La clé USB n'apparaît pas : essayez une autre clé en FAT32, ou un
+  autre port USB de l'écran.
+- L'appli se ferme toute seule : relancez-la, puis ouvrez Diagnostic :
+  la cause du plantage y est affichée. Touchez "Enregistrer" et
+  envoyez-moi le fichier.
+- Zone noire à la place de la voiture : quittez puis relancez l'appli.
+  Si ça continue, l'écran ne gère peut-être pas la 3D : enregistrez le
+  journal dans Diagnostic et envoyez-le-moi.
+- La voiture semble "à l'envers" ou de travers après un import :
+  Réglages > Modèle 3D > "Tourner de 90°".
+- L'OBD2 ne se connecte pas : contact mis ? adaptateur bien enfoncé ?
+  appairé dans Android ? Sur Android 12 et plus, acceptez l'autorisation
+  "Appareils à proximité" quand l'appli la demande.
+- L'écran ne se met pas en veille quand l'appli est ouverte : c'est
+  voulu (comme un tableau de bord).

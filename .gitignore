@@ -1,0 +1,11 @@
+# compilation
+/build/
+/app/build/
+/tools/robotest/build/
+/tools/robotest/.gradle/
+.gradle/
+local.properties
+*.iml
+.idea/
+.DS_Store
+__pycache__/

@@ -1,0 +1,72 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Apercu 3D</title>
+<style>body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<canvas id="c"></canvas>
+<script>
+// Reproduction fidele de CarRenderer.onDrawFrame avec les shaders de l'appli.
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 1024, H = +q.get('h') || 600;
+const yaw = q.has('yaw') ? +q.get('yaw') : 38, pitch = q.has('pitch') ? +q.get('pitch') : 13, zoom = +q.get("zoom") || 1.0;
+const openMask = q.get('open') || '000000';
+const hex = s => [parseInt(s.substr(0,2),16)/255, parseInt(s.substr(2,2),16)/255, parseInt(s.substr(4,2),16)/255];
+const paint = hex(q.get('paint') || '8C9196'), bg = hex(q.get('bg') || '0A1019'), accent = hex(q.get('accent') || '4FC3F7');
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const gl = cv.getContext('webgl', {antialias: true});
+const log = [];
+function mul(a,b){const r=new Float32Array(16);for(let c=0;c<4;c++)for(let row=0;row<4;row++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+row]*b[c*4+k];r[c*4+row]=s;}return r;}
+function persp(fovy,asp,n,f){const t=1/Math.tan(fovy*Math.PI/360);const m=new Float32Array(16);m[0]=t/asp;m[5]=t;m[10]=(f+n)/(n-f);m[11]=-1;m[14]=2*f*n/(n-f);return m;}
+function lookAt(e,c,u){let f=[c[0]-e[0],c[1]-e[1],c[2]-e[2]];let l=Math.hypot(...f);f=f.map(v=>v/l);let s=[f[1]*u[2]-f[2]*u[1],f[2]*u[0]-f[0]*u[2],f[0]*u[1]-f[1]*u[0]];l=Math.hypot(...s);s=s.map(v=>v/l);const uu=[s[1]*f[2]-s[2]*f[1],s[2]*f[0]-s[0]*f[2],s[0]*f[1]-s[1]*f[0]];const m=new Float32Array(16);m[0]=s[0];m[4]=s[1];m[8]=s[2];m[1]=uu[0];m[5]=uu[1];m[9]=uu[2];m[2]=-f[0];m[6]=-f[1];m[10]=-f[2];m[12]=-(s[0]*e[0]+s[1]*e[1]+s[2]*e[2]);m[13]=-(uu[0]*e[0]+uu[1]*e[1]+uu[2]*e[2]);m[14]=f[0]*e[0]+f[1]*e[1]+f[2]*e[2];m[15]=1;return m;}
+function compile(type, src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){throw new Error('compile: '+gl.getShaderInfoLog(s));}return s;}
+function link(vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(gl.VERTEX_SHADER,vs));gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error('link: '+gl.getProgramInfoLog(p));return p;}
+async function txt(u){const r=await fetch(u);if(!r.ok)throw new Error(u);return r.text();}
+(async()=>{
+ try{
+  const sh='/app/src/main/assets/shaders/';
+  const cvs=await txt(sh+'car.vert'), cfs=await txt(sh+'car.frag');
+  const prog=link(cvs,cfs); const progMask=link(cvs,'#define MASK\n'+cfs);
+  const gp=link(await txt(sh+'ground.vert'), await txt(sh+'ground.frag'));
+  log.push('shaders OK');
+  const sc=await (await fetch('/build/preview/scene.json')).json();
+  const bin=await (await fetch('/build/preview/scene.bin')).arrayBuffer();
+  const U=n=>gl.getUniformLocation(prog,n);
+  const items=sc.items.map(it=>{
+    const pos=new Float32Array(bin,it.off,it.nv*3), nor=new Float32Array(bin,it.off+it.nv*12,it.nv*3), idx=new Uint32Array(bin,it.off+it.nv*24,it.ni);
+    const inter=new Float32Array(it.nv*8);for(let k=0;k<it.nv;k++){inter.set(pos.subarray(k*3,k*3+3),k*8);inter.set(nor.subarray(k*3,k*3+3),k*8+3);}
+    const vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,inter,gl.STATIC_DRAW);
+    const ibo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(idx),gl.STATIC_DRAW);
+    return Object.assign({vbo,ibo},it);});
+  const I=new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+  const partM=[0,1,2,3,4,5].map(p=>openMask[p]==='1'?new Float32Array(sc.open[p]):I);
+  // camera (identique a CarRenderer)
+  const h=sc.max[1]-sc.min[1];const radius=0.5*Math.hypot(sc.max[0]-sc.min[0],h,sc.max[2]-sc.min[2]);
+  const aspect=W/H, halfV=15*Math.PI/180, halfH=Math.atan(Math.tan(halfV)*aspect);
+  const fit=Math.max(0.95,Math.min(1.35,0.95+(aspect-0.9)*0.9));const dist=radius/Math.sin(Math.min(halfV,halfH))/(zoom*fit); const ty=h*0.40;
+  const yr=yaw*Math.PI/180, pr=pitch*Math.PI/180;
+  const eye=[dist*Math.cos(pr)*Math.sin(yr), ty+dist*Math.sin(pr), dist*Math.cos(pr)*Math.cos(yr)];
+  const vp=mul(persp(30,aspect,Math.max(0.05,dist-radius*2.2),dist+radius*2.5),lookAt(eye,[0,ty,0],[0,1,0]));
+  gl.viewport(0,0,W,H);gl.clearColor(bg[0],bg[1],bg[2],1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);
+  // sol
+  const len=sc.max[2]-sc.min[2], wid=sc.max[0]-sc.min[0];
+  gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.useProgram(gp);
+  gl.uniformMatrix4fv(gl.getUniformLocation(gp,'uViewProj'),false,vp);
+  const qb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,qb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  const ga=gl.getAttribLocation(gp,'aXZ');gl.enableVertexAttribArray(ga);gl.vertexAttribPointer(ga,2,gl.FLOAT,false,8,0);
+  const ground=(hx,hz,r,g,b,a,inner)=>{gl.uniform2f(gl.getUniformLocation(gp,'uHalf'),hx,hz);gl.uniform2f(gl.getUniformLocation(gp,'uCenter'),0,0);gl.uniform4f(gl.getUniformLocation(gp,'uColor'),r,g,b,a);gl.uniform1f(gl.getUniformLocation(gp,'uInner'),inner);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);};
+  ground(wid*2.3,len*0.95,accent[0],accent[1],accent[2],0.13,0.0);ground(wid*0.68,len*0.58,0,0,0,0.62,0.45);ground(wid*0.80,len*0.66,0,0,0,0.35,0.2);
+  gl.disableVertexAttribArray(ga);gl.depthMask(true);gl.disable(gl.BLEND);
+  const draw=(it,p)=>{gl.useProgram(p);const u=n=>gl.getUniformLocation(p,n);
+    gl.uniformMatrix4fv(u('uViewProj'),false,vp);gl.uniformMatrix4fv(u('uModel'),false,it.part>=0?partM[it.part]:I);gl.uniform3f(u('uCam'),...eye);
+    if(it.paint){gl.uniform4f(u('uColor'),paint[0],paint[1],paint[2],it.color[3]);gl.uniform1f(u('uClear'),1);gl.uniform1f(u('uMetal'),Math.min(0.85,Math.max(0.55,it.metal)));gl.uniform1f(u('uRough'),Math.min(0.45,it.rough));}
+    else{gl.uniform4f(u('uColor'),...it.color);gl.uniform1f(u('uClear'),0);gl.uniform1f(u('uMetal'),it.metal);gl.uniform1f(u('uRough'),it.rough);}
+    gl.uniform3f(u('uEmissive'),...it.em);gl.uniform1f(u('uDarkBack'),sc.generated?1:0);gl.uniform1f(u('uCutoff'),-1);gl.uniform1f(u('uUseTex'),0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,it.vbo);const ap=gl.getAttribLocation(p,'aPos'),an=gl.getAttribLocation(p,'aNor'),au=gl.getAttribLocation(p,'aUv');
+    gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,3,gl.FLOAT,false,32,0);gl.enableVertexAttribArray(an);gl.vertexAttribPointer(an,3,gl.FLOAT,false,32,12);gl.enableVertexAttribArray(au);gl.vertexAttribPointer(au,2,gl.FLOAT,false,32,24);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,it.ibo);gl.drawElements(gl.TRIANGLES,it.ni,gl.UNSIGNED_SHORT,0);};
+  const blended=[];for(const it of items){if(it.blend)blended.push(it);else draw(it,prog);}
+  const d2=it=>{let c=it.c;if(it.part>=0){const m=partM[it.part];c=[m[0]*c[0]+m[4]*c[1]+m[8]*c[2]+m[12],m[1]*c[0]+m[5]*c[1]+m[9]*c[2]+m[13],m[2]*c[0]+m[6]*c[1]+m[10]*c[2]+m[14]];}return (c[0]-eye[0])**2+(c[1]-eye[1])**2+(c[2]-eye[2])**2;};
+  blended.sort((a,b)=>d2(b)-d2(a));gl.enable(gl.BLEND);gl.depthMask(false);for(const it of blended)draw(it,prog);gl.depthMask(true);gl.disable(gl.BLEND);
+  const err=gl.getError(); log.push('glError='+err);
+  document.title='done '+log.join(' ');
+ }catch(e){document.title='err '+e.message;}
+})();
+</script></body></html>

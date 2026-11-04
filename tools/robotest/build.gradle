@@ -1,0 +1,51 @@
+// Test d'interface Robolectric (Android simule sur PC) : lance l'activite,
+// parcourt tous les ecrans et enregistre des captures dans build/screens.
+// Prerequis : ../../build.sh deja execute (classes + ressources compilees).
+plugins { id 'java' }
+repositories {
+    // miroir Google de Maven Central (moins sujet aux limites de debit)
+    maven { url 'https://maven-central.storage-download.googleapis.com/maven2' }
+    mavenCentral()
+}
+def root = file('../..')
+def androidJar = System.getenv('ANDROID_JARS') ?: '/opt/android-local/platforms'
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation('org.robolectric:robolectric:4.14.1') {
+        exclude group: 'androidx.test'
+        exclude group: 'androidx.test.espresso'
+    }
+    testCompileOnly files("$androidJar/android-34/android.jar")
+    // definitions de classes pour JUnit hors bac a sable (Robolectric execute avec son propre Android)
+    testRuntimeOnly files("$androidJar/android-34/android.jar")
+    testImplementation files("$root/build/classes")
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+// chemins absolus generes a la volee (Robolectric lit les ressources compilees par build.sh)
+def cfgDir = file("$buildDir/generated/testcfg")
+tasks.register('testConfig') {
+    outputs.dir cfgDir
+    doLast {
+        def f = new File(cfgDir, 'com/android/tools/test_config.properties')
+        f.parentFile.mkdirs()
+        f.text = "android_merged_manifest=${new File(root, 'build/AndroidManifest.xml').canonicalPath}\n" +
+                "android_merged_assets=${new File(root, 'app/src/main/assets').canonicalPath}\n" +
+                "android_resource_apk=${new File(root, 'build/base.apk').canonicalPath}\n" +
+                "android_custom_package=com.rayan.w204dash\n"
+    }
+}
+sourceSets.test.resources.srcDir cfgDir
+processTestResources.dependsOn 'testConfig'
+test {
+    systemProperty 'screens.dir', file('build/screens').absolutePath
+    // captures d'ecran : gradle test -Pscreens (moteur graphique natif de Robolectric)
+    if (project.hasProperty('screens')) systemProperty 'screens.native', 'true'
+    if (project.hasProperty('preview3d')) systemProperty 'preview3d', project.property('preview3d')
+    systemProperty 'robolectric.logging', 'stdout'
+    systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
+    testLogging { events 'passed', 'failed'; exceptionFormat 'full'; showStandardStreams = true }
+    maxHeapSize = '3g'
+    outputs.upToDateWhen { false }
+}
+

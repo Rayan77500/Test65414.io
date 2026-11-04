@@ -1,0 +1,18 @@
+// Projet Android Studio (optionnel). La compilation de reference de l'APK
+// livre se fait avec ./build.sh (sans Gradle ni Android Studio).
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'W204Dash'
+include ':app'
