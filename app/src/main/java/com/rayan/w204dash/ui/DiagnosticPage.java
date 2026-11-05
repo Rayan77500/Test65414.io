@@ -117,6 +117,13 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         if (p.customCanActions().trim().length() > 0) {
             sb.append("Broadcasts ajoutés à la main :\n  ").append(p.customCanActions().trim().replace("\n", "\n  ")).append('\n');
         }
+        sb.append("Lecture des fenêtres (accessibilité) : ").append(com.rayan.w204dash.data.CanWindowState.summary())
+                .append('\n');
+        String win = com.rayan.w204dash.data.CanWindowState.dump();
+        if (win.length() > 0) {
+            sb.append("\n== Dernière fenêtre de l'appli CAN ==\n")
+                    .append(win.length() > 3000 ? win.substring(0, 3000) + "…" : win).append('\n');
+        }
         String crash = CrashLog.read();
         if (crash != null) {
             sb.append("\n== Dernier plantage ==\n").append(crash.length() > 2500 ? crash.substring(0, 2500) + "…" : crash)

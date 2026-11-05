@@ -203,7 +203,7 @@ public final class HeadUnitProbe {
         else if (n > 60) r.add("… (" + (n - 60) + " autres)");
     }
 
-    static boolean isVehiclePackage(String name) {
+    public static boolean isVehiclePackage(String name) {
         String lower = name.toLowerCase(Locale.US);
         if (lower.contains("canbus") || lower.contains("carinfo") || lower.contains("microntek")) return true;
         if (lower.startsWith("com.google.") || lower.contains("carrier") || lower.contains("cards")) return false;

@@ -210,6 +210,17 @@ public class HeadUnitDataSource extends BaseSource {
     }
 
     @Override
+    public void snapshot(VehicleData out) {
+        super.snapshot(out);
+        CanWindowState.fill(out);
+    }
+
+    @Override
+    public String getStatus() {
+        return super.getStatus() + "\nLecture des fenêtres : " + CanWindowState.summary();
+    }
+
+    @Override
     public void stop() {
         running = false;
         if (watcher != null) watcher.interrupt();
@@ -235,6 +246,7 @@ public class HeadUnitDataSource extends BaseSource {
             report.line("  • " + p);
         }
         report.line("Broadcasts candidats trouvés : " + r.actions.size());
+        report.line("Lecture des fenêtres (accessibilité) : " + CanWindowState.summary());
         for (String v : r.verdict) report.line(v);
         if (running) report.line("Broadcasts reçus depuis le démarrage : " + received);
         if (r.packages.isEmpty()) {

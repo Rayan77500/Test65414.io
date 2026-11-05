@@ -92,6 +92,22 @@ source choisie. C'est normal, l'appli ne plante pas.
   volant et à la caméra de recul.
 
 
+6 bis) AFFICHER LES PORTES LUES PAR L'ÉCRAN (à faire une seule fois)
+------------------------------------------------------------------
+Votre écran affiche lui-même une image quand une porte s'ouvre. W204 Dash
+peut lire cette fenêtre pour connaître l'état des portes, du capot et
+du coffre :
+- Réglages > Source de données > "Écran" (ou "Les deux").
+- Touchez "Lire les portes affichées par l'écran".
+- Dans la liste Accessibilité d'Android, touchez
+  "W204 Dash – lecture des portes", activez-le, puis acceptez.
+  (Ce service ne lit QUE les fenêtres de l'appli CAN de l'écran.)
+- Revenez dans W204 Dash, ouvrez une porte : elle doit passer à
+  "OUVERT" dans Véhicule > Ouvrants et s'ouvrir sur la voiture 3D.
+- Si ça ne marche pas : Diagnostic > Enregistrer, et envoyez-moi le
+  fichier (il contient la description de la fenêtre de l'écran).
+
+
 7) REMPLACER LA VOITURE 3D
 --------------------------
 La voiture actuelle est un modèle PROVISOIRE simplifié.

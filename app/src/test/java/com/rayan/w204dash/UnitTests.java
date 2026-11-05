@@ -41,6 +41,7 @@ public class UnitTests {
         can();
         demo();
         headUnit();
+        canWindow();
         System.out.println(passed + " verifications reussies, " + failed + " echec(s)");
         if (failed > 0) System.exit(1);
     }
@@ -245,6 +246,67 @@ public class UnitTests {
                 && BuildInfo.androidVersion(29, "14").contains("14"), "version maquillee : " + BuildInfo.androidVersion(29, "14"));
         check(BuildInfo.androidVersion(34, "14").equals("Android 14 (API 34)"), "version normale");
         check(BuildInfo.androidVersion(16, "4.1.2").equals("Android 4.1 (API 16)"), "version 4.1.2");
+    }
+
+    private static com.rayan.w204dash.data.CanWindowState.Node node(String id, String text, boolean vis, boolean sel) {
+        com.rayan.w204dash.data.CanWindowState.Node n = new com.rayan.w204dash.data.CanWindowState.Node();
+        n.id = id == null ? "" : "com.can.activity:id/" + id;
+        n.text = text == null ? "" : text;
+        n.visible = vis;
+        n.selected = sel;
+        return n;
+    }
+
+    /** Fenetre "porte ouverte" affichee par l'appli CAN de l'ecran (lecture par accessibilite). */
+    static void canWindow() {
+        java.util.List<com.rayan.w204dash.data.CanWindowState.Node> w = new java.util.ArrayList<com.rayan.w204dash.data.CanWindowState.Node>();
+        w.add(node("iv_car_bg", null, true, false));
+        w.add(node("iv_door_lf", null, true, false));
+        w.add(node("iv_door_rf", null, false, false));
+        w.add(node("iv_door_lr", null, false, false));
+        w.add(node("iv_door_rr", null, false, false));
+        w.add(node("iv_trunk", null, true, false));
+        w.add(node("tv_engine_temp", "90", true, false));
+        int[] st = com.rayan.w204dash.data.CanWindowState.parse(w);
+        check(st != null && st[VehicleData.DOOR_FL] == 1 && st[VehicleData.DOOR_FR] == 0 && st[VehicleData.DOOR_RL] == 0
+                && st[VehicleData.DOOR_RR] == 0 && st[VehicleData.TRUNK] == 1 && st[VehicleData.HOOD] == -1,
+                "fenetre : images visibles = ouvert " + java.util.Arrays.toString(st));
+        // toutes les images visibles, rien de selectionne : impossible de conclure
+        java.util.List<com.rayan.w204dash.data.CanWindowState.Node> w2 = new java.util.ArrayList<com.rayan.w204dash.data.CanWindowState.Node>();
+        for (String id : new String[]{"img_fl", "img_fr", "img_rl", "img_rr", "img_hood", "img_trunk"}) w2.add(node(id, null, true, false));
+        check(com.rayan.w204dash.data.CanWindowState.parse(w2) == null, "fenetre non interpretable");
+        w2.get(1).selected = true;
+        int[] st2 = com.rayan.w204dash.data.CanWindowState.parse(w2);
+        check(st2 != null && st2[VehicleData.DOOR_FR] == 1 && st2[VehicleData.DOOR_FL] == 0, "etat selectionne");
+        java.util.List<com.rayan.w204dash.data.CanWindowState.Node> w3 = new java.util.ArrayList<com.rayan.w204dash.data.CanWindowState.Node>();
+        w3.add(node(null, "Porte arrière droite ouverte", true, false));
+        int[] st3 = com.rayan.w204dash.data.CanWindowState.parse(w3);
+        check(st3 != null && st3[VehicleData.DOOR_RR] == 1, "texte de la fenetre");
+        check(com.rayan.w204dash.data.CanWindowState.openableOf(tokensOf("doorFrontRight")) == VehicleData.DOOR_FR, "doorFrontRight");
+        check(com.rayan.w204dash.data.CanWindowState.openableOf(tokensOf("back_door")) == VehicleData.TRUNK, "back_door");
+        check(com.rayan.w204dash.data.CanWindowState.openableOf(tokensOf("door_rear_left")) == VehicleData.DOOR_RL, "door_rear_left");
+        check(com.rayan.w204dash.data.CanWindowState.openableOf(tokensOf("img_hood")) == VehicleData.HOOD, "img_hood");
+        check(com.rayan.w204dash.data.CanWindowState.openableOf(tokensOf("iv_bg")) == -1, "iv_bg");
+        // memorisation puis fusion dans les donnees
+        check(com.rayan.w204dash.data.CanWindowState.apply("com.can.activity", w), "apply");
+        VehicleData d = new VehicleData();
+        com.rayan.w204dash.data.CanWindowState.fill(d);
+        check(d.open[VehicleData.DOOR_FL] == 1 && d.open[VehicleData.TRUNK] == 1 && d.open[VehicleData.DOOR_FR] == 0, "fill");
+        com.rayan.w204dash.data.CanWindowState.windowGone();
+        com.rayan.w204dash.data.CanWindowState.fill(d = new VehicleData());
+        check(d.open[VehicleData.DOOR_FL] == 0 && d.open[VehicleData.TRUNK] == 0, "fenetre fermee = tout ferme");
+    }
+
+    private static java.util.Set<String> tokensOf(String s) {
+        try {
+            java.lang.reflect.Method m = com.rayan.w204dash.data.CanWindowState.class.getDeclaredMethod("tokens", String.class);
+            m.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.Set<String> r = (java.util.Set<String>) m.invoke(null, s);
+            return r;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static double cycle(double t) {

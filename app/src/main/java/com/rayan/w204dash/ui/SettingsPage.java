@@ -279,6 +279,14 @@ public class SettingsPage extends Page implements DataRepository.Listener {
             }
         }), Ui.lp(-2, Ui.dp(56)));
         src.addView(obdRow, orl);
+        LinearLayout.LayoutParams wbl = Ui.lp(-1, Ui.dp(60));
+        wbl.topMargin = Ui.dp(10);
+        src.addView(Ui.button(a, Icons.DOOR, "Lire les portes affichées par l'écran", new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                act.openAccessibilitySettings();
+            }
+        }), wbl);
         sourceStatus = Ui.text(a, "", 15, Theme.text2, Ui.REGULAR);
         sourceStatus.setPadding(0, Ui.dp(10), 0, 0);
         src.addView(sourceStatus, Ui.lp(-1, -2));

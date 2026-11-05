@@ -160,6 +160,16 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** Reglages Android "Accessibilite" (lecture des fenetres de l'appli CAN). */
+    public void openAccessibilitySettings() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            toast("Activez « W204 Dash – lecture des portes », puis revenez");
+        } catch (Throwable e) {
+            toast("Réglage Accessibilité introuvable sur cet écran");
+        }
+    }
+
     public void pickModelFile() {
         Intent i = new Intent(Intent.ACTION_GET_CONTENT);
         i.setType("*/*");
