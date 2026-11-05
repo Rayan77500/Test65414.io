@@ -108,6 +108,14 @@ du coffre :
   fichier (il contient la description de la fenêtre de l'écran).
 
 
+6 ter) EXPORTER L'APPLI CAN DE L'ÉCRAN (pour analyse)
+-----------------------------------------------------
+Diagnostic > "Exporter l'appli CAN" : un fichier
+w204dash_appli_can_....zip est créé dans Téléchargements (Download).
+Il contient le programme de l'écran qui reçoit les infos de la voiture
+(rien de personnel). Envoyez-le-moi pour que je voie comment il les lit.
+
+
 7) REMPLACER LA VOITURE 3D
 --------------------------
 La voiture actuelle est un modèle PROVISOIRE simplifié.

@@ -64,6 +64,12 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
                 addAction();
             }
         });
+        addBtn(bar, Icons.FOLDER, "Exporter l'appli CAN", new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                exportCanApp();
+            }
+        });
         addBtn(bar, Icons.TRASH, "Effacer le journal", new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -221,9 +227,19 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         } catch (java.io.UnsupportedEncodingException e) {
             return;
         }
+        saveBytes(name, "text/plain", data, new Runnable() {
+            @Override
+            public void run() {
+                save();
+            }
+        });
+    }
+
+    /** Enregistre un fichier dans Telechargements (ou, a defaut, le dossier de l'appli). */
+    private void saveBytes(String name, String mime, byte[] data, Runnable retryAfterPermission) {
         if (Build.VERSION.SDK_INT >= 29) {
             try {
-                String where = Compat.saveToDownloads(getContext(), name, "text/plain", data);
+                String where = Compat.saveToDownloads(getContext(), name, mime, data);
                 act.toast("Enregistré dans " + where);
                 return;
             } catch (Exception e) {
@@ -242,12 +258,7 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
                 DiagLog.e("Diag", "Enregistrement dans Download", e);
             }
         } else {
-            act.requestPermission("android.permission.WRITE_EXTERNAL_STORAGE", new Runnable() {
-                @Override
-                public void run() {
-                    save();
-                }
-            });
+            act.requestPermission("android.permission.WRITE_EXTERNAL_STORAGE", retryAfterPermission);
             return;
         }
         try {
@@ -259,6 +270,125 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         } catch (Exception e) {
             act.toast("Impossible d'enregistrer : " + e.getMessage());
         }
+    }
+
+    // ------------------------------------------------------------ export appli CAN
+    private static final long EXPORT_MAX = 70L * 1024 * 1024;
+
+    /**
+     * Copie l'appli CAN de l'ecran (APK, code precompile odex/vdex, bibliotheques
+     * natives) dans un .zip du dossier Telechargements, pour l'analyser sur PC
+     * et comprendre comment elle recoit les infos de la voiture.
+     */
+    private void exportCanApp() {
+        act.toast("Export de l'appli CAN en cours…");
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                byte[] zip = null;
+                String err = null;
+                try {
+                    zip = buildExport();
+                } catch (Throwable t) {
+                    err = t.getMessage();
+                    DiagLog.e("Diag", "Export de l'appli CAN", t);
+                }
+                final byte[] z = zip;
+                final String e = err;
+                post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (z == null) {
+                            act.toast("Export impossible : " + e);
+                            return;
+                        }
+                        String name = "w204dash_appli_can_"
+                                + new SimpleDateFormat("yyyyMMdd_HHmm", Locale.FRANCE).format(new Date()) + ".zip";
+                        DiagLog.i("Diag", "Export de l'appli CAN : " + (z.length / 1024) + " Ko");
+                        saveBytes(name, "application/zip", z, new Runnable() {
+                            @Override
+                            public void run() {
+                                exportCanApp();
+                            }
+                        });
+                    }
+                });
+            }
+        }, "export-can").start();
+    }
+
+    private byte[] buildExport() throws Exception {
+        HeadUnitProbe.Report r = HeadUnitProbe.last();
+        if (r == null) r = HeadUnitProbe.run(getContext().getApplicationContext());
+        android.content.pm.PackageManager pm = getContext().getPackageManager();
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(bos);
+        StringBuilder info = new StringBuilder();
+        info.append("Export W204 Dash ").append(BuildInfo.VERSION).append(" - ").append(BuildInfo.androidVersion())
+                .append(" - ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
+                .append("Plateforme : ").append(r.platform).append("\n\n");
+        long[] total = {0};
+        int files = 0;
+        for (String pkg : r.packages) {
+            if (pkg.contains("bluetooth")) continue;
+            android.content.pm.ApplicationInfo ai;
+            android.content.pm.PackageInfo pi;
+            try {
+                ai = pm.getApplicationInfo(pkg, 0);
+                pi = pm.getPackageInfo(pkg, 0);
+            } catch (Exception e) {
+                continue;
+            }
+            info.append(pkg).append(" v").append(pi.versionName).append(" (code ").append(pi.versionCode).append(")\n")
+                    .append("  APK : ").append(ai.sourceDir).append('\n')
+                    .append("  bibliothèques : ").append(ai.nativeLibraryDir).append('\n');
+            File apk = new File(ai.sourceDir);
+            files += addFile(zos, apk, pkg + "/" + apk.getName(), total);
+            File dir = apk.getParentFile();
+            if (dir != null) {
+                files += addTree(zos, new File(dir, "oat"), pkg + "/oat", total, 0);
+                files += addTree(zos, new File(dir, "lib"), pkg + "/lib", total, 0);
+            }
+            if (ai.nativeLibraryDir != null) {
+                files += addTree(zos, new File(ai.nativeLibraryDir), pkg + "/nativeLib", total, 0);
+            }
+        }
+        info.append("\n").append(files).append(" fichier(s), ").append(total[0] / 1024).append(" Ko\n");
+        zos.putNextEntry(new java.util.zip.ZipEntry("infos.txt"));
+        zos.write(info.toString().getBytes("UTF-8"));
+        zos.closeEntry();
+        zos.close();
+        if (files == 0) throw new Exception("aucun fichier lisible (appli CAN introuvable ou protégée)");
+        return bos.toByteArray();
+    }
+
+    private static int addTree(java.util.zip.ZipOutputStream zos, File dir, String prefix, long[] total, int depth)
+            throws java.io.IOException {
+        File[] fs = dir.listFiles();
+        if (fs == null || depth > 3) return 0;
+        int n = 0;
+        for (File f : fs) {
+            if (f.isDirectory()) n += addTree(zos, f, prefix + "/" + f.getName(), total, depth + 1);
+            else n += addFile(zos, f, prefix + "/" + f.getName(), total);
+        }
+        return n;
+    }
+
+    private static int addFile(java.util.zip.ZipOutputStream zos, File f, String entry, long[] total)
+            throws java.io.IOException {
+        if (!f.isFile() || !f.canRead() || total[0] + f.length() > EXPORT_MAX) return 0;
+        zos.putNextEntry(new java.util.zip.ZipEntry(entry));
+        java.io.InputStream in = new java.io.FileInputStream(f);
+        try {
+            byte[] buf = new byte[65536];
+            int k;
+            while ((k = in.read(buf)) > 0) zos.write(buf, 0, k);
+        } finally {
+            Files.closeQuietly(in);
+        }
+        zos.closeEntry();
+        total[0] += f.length();
+        return 1;
     }
 
     @Override
