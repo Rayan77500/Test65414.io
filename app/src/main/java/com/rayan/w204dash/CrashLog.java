@@ -32,7 +32,7 @@ public final class CrashLog {
                     PrintWriter pw = new PrintWriter(sw);
                     pw.println("Plantage le " + new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.FRANCE).format(new Date())
                             + " (thread " + t.getName() + ")");
-                    pw.println("Android " + android.os.Build.VERSION.RELEASE + " API " + android.os.Build.VERSION.SDK_INT
+                    pw.println(BuildInfo.VERSION + " - " + BuildInfo.androidVersion()
                             + " - " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
                     e.printStackTrace(pw);
                     pw.flush();

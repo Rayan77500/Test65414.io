@@ -40,6 +40,7 @@ public class UnitTests {
         obd();
         can();
         demo();
+        headUnit();
         System.out.println(passed + " verifications reussies, " + failed + " echec(s)");
         if (failed > 0) System.exit(1);
     }
@@ -195,6 +196,55 @@ public class UnitTests {
         check("3".equals(DemoDataSource.estimateGear(50, 1300, false))
                 || "4".equals(DemoDataSource.estimateGear(50, 1300, false)), "rapport estime a 50 km/h");
         check(DemoDataSource.estimateGear(0, 750, false) == null, "pas de rapport a l'arret");
+    }
+
+    /** Cas reel : ecran Unisoc UIS8581A "Yecon" (diagnostic du 05/11/2026). */
+    static void headUnit() {
+        Map<String, String> p = new java.util.LinkedHashMap<String, String>();
+        com.rayan.w204dash.data.SysProps.parseLine("[persist.sys.fun.canbus]: [0]", p);
+        com.rayan.w204dash.data.SysProps.parseLine("[persist.sys.can_box]: [0]", p);
+        com.rayan.w204dash.data.SysProps.parseLine("[persist.sys.can_car_type]: [0]", p);
+        com.rayan.w204dash.data.SysProps.parseLine("[persist.sys.factory_password]: [8888]", p);
+        com.rayan.w204dash.data.SysProps.parseLine("[ro.board.platform]: [sp9863a]", p);
+        com.rayan.w204dash.data.SysProps.parseLine("[persist.wifi.front]: [1# end of device/sprd/system.prop]", p);
+        check(p.size() == 6 && "8888".equals(p.get("persist.sys.factory_password")), "lecture getprop");
+        java.util.List<String> v = com.rayan.w204dash.data.SysProps.verdict(p);
+        String all = v.toString();
+        check(all.contains("DÉSACTIVÉ"), "verdict boitier CAN desactive : " + all);
+        check(all.contains("8888"), "code d'usine");
+        check(all.contains("Unisoc"), "processeur Unisoc");
+        p.put("persist.sys.fun.canbus", "1");
+        p.put("persist.sys.can_box", "3");
+        check(com.rayan.w204dash.data.SysProps.verdict(p).toString().contains("configuré ("), "verdict boitier CAN actif");
+        check(com.rayan.w204dash.data.SysProps.isVehicleKey("persist.sys.backcar_enable"), "propriete vehicule");
+        check(!com.rayan.w204dash.data.SysProps.isVehicleKey("ro.boottime.statsd"), "propriete ignoree");
+
+        // actions : les noms de proprietes ne sont pas des broadcasts
+        java.util.Set<String> acts = new java.util.LinkedHashSet<String>();
+        com.rayan.w204dash.data.HeadUnitProbe.consider("persist.sys.door_status_enable", acts);
+        com.rayan.w204dash.data.HeadUnitProbe.consider("com.yecon.action.CAN_AIRINFO", acts);
+        com.rayan.w204dash.data.HeadUnitProbe.consider("com.yecon.action.carinfo", acts);
+        check(acts.size() == 2 && !acts.contains("persist.sys.door_status_enable"), "actions filtrees : " + acts);
+        java.util.Set<String> keys = new java.util.LinkedHashSet<String>();
+        for (String k : new String[]{"door_fl", "outTemp", "DOOR_STATUS", "getDoorState", "mDoorView", "fan_level",
+                "hello", "radar_rear_1"}) {
+            com.rayan.w204dash.data.HeadUnitProbe.considerKey(k, keys);
+        }
+        check(keys.contains("door_fl") && keys.contains("DOOR_STATUS") && keys.contains("fan_level")
+                && keys.contains("radar_rear_1"), "cles de donnees : " + keys);
+        check(!keys.contains("getDoorState") && !keys.contains("mDoorView") && !keys.contains("hello"), "cles exclues");
+
+        // marche arriere deduite du nom du broadcast
+        VehicleData d = new VehicleData();
+        check(CanExtrasParser.parse("com.yecon.action.BACKCAR_START", null, d) == 1 && d.reverse == 1, "BACKCAR_START");
+        check(CanExtrasParser.parse("com.yecon.action.BACKCAR_STOP", null, d) == 1 && d.reverse == 0, "BACKCAR_STOP");
+        check(CanExtrasParser.parse("com.yecon.action.CAN_AIRINFO", null, d) == 0, "sans extras");
+
+        // version Android reelle
+        check(BuildInfo.androidVersion(29, "14").startsWith("Android 10 (API 29)")
+                && BuildInfo.androidVersion(29, "14").contains("14"), "version maquillee : " + BuildInfo.androidVersion(29, "14"));
+        check(BuildInfo.androidVersion(34, "14").equals("Android 14 (API 34)"), "version normale");
+        check(BuildInfo.androidVersion(16, "4.1.2").equals("Android 4.1 (API 16)"), "version 4.1.2");
     }
 
     private static double cycle(double t) {

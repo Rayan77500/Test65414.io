@@ -83,10 +83,19 @@ public final class CanExtrasParser {
      * @return nombre de valeurs reconnues et ecrites dans d
      */
     public static int parse(String action, Map<String, Object> extras, VehicleData d) {
-        if (extras == null) return 0;
         String act = norm(action);
-        boolean doorCtx = act.contains("door");
         int found = 0;
+        if (act.contains("backcar") || act.contains("reverse") || act.contains("rgear")) {
+            if (act.endsWith("start") || act.endsWith("on") || act.endsWith("enter")) {
+                d.reverse = 1;
+                found++;
+            } else if (act.endsWith("stop") || act.endsWith("off") || act.endsWith("exit")) {
+                d.reverse = 0;
+                found++;
+            }
+        }
+        if (extras == null) return found;
+        boolean doorCtx = act.contains("door");
         for (Map.Entry<String, Object> e : extras.entrySet()) {
             String k = norm(e.getKey());
             Object v = e.getValue();

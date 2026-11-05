@@ -64,6 +64,9 @@ public final class HeadUnitProbe {
         public final List<String> lines = new ArrayList<String>();
         public final LinkedHashSet<String> actions = new LinkedHashSet<String>();
         public final List<String> packages = new ArrayList<String>();
+        public final LinkedHashSet<String> keys = new LinkedHashSet<String>();
+        public final List<String> verdict = new ArrayList<String>();
+        public java.util.Map<String, String> props = new java.util.LinkedHashMap<String, String>();
         public String platform = "inconnue";
         public long durationMs;
 
@@ -123,11 +126,29 @@ public final class HeadUnitProbe {
             r.add("Erreur ports série : " + t);
         }
         try {
-            bindKnown(ctx, r);
+            bindKnown(ctx, r, pkgs);
         } catch (Throwable t) {
             r.add("Erreur services : " + t);
         }
         r.durationMs = System.currentTimeMillis() - t0;
+        // conclusions en tete du rapport
+        try {
+            r.verdict.addAll(SysProps.verdict(r.props));
+        } catch (Throwable ignored) {
+            // proprietes illisibles
+        }
+        for (String a : r.actions) {
+            if (a.toLowerCase(Locale.US).contains("yecon")) {
+                r.verdict.add("Logiciel d'écran de type « Yecon » (broadcasts com.yecon.action.*).");
+                break;
+            }
+        }
+        List<String> head = new ArrayList<String>();
+        head.add("== Verdict ==");
+        if (r.verdict.isEmpty()) head.add("(rien de particulier)");
+        head.addAll(r.verdict);
+        head.add("");
+        r.lines.addAll(0, head);
         r.add("");
         r.add("Détection terminée en " + (r.durationMs / 100) / 10.0 + " s : plateforme " + r.platform + ", "
                 + r.packages.size() + " appli(s) liée(s) au véhicule, " + r.actions.size()
@@ -140,7 +161,7 @@ public final class HeadUnitProbe {
     private static void device(Report r) {
         r.add("== Appareil ==");
         r.add("Modèle : " + Build.MANUFACTURER + " " + Build.MODEL + " (" + Build.BRAND + " / " + Build.DEVICE + ")");
-        r.add("Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+        r.add(com.rayan.w204dash.BuildInfo.androidVersion());
         r.add("Carte : " + Build.BOARD + " / " + Build.HARDWARE);
         r.add("Firmware : " + Build.DISPLAY);
         r.add("Empreinte : " + Build.FINGERPRINT);
@@ -151,25 +172,22 @@ public final class HeadUnitProbe {
         r.add("== Propriétés système intéressantes ==");
         Pattern kw = Pattern.compile("(?i).*(can|car|mcu|fyt|syu|mtc|hct|microntek|ts10|ts18|uis7862|vehicle|platform|"
                 + "customer|factory|ac8227|sp9863|px[56]|rk3|8581|8227).*");
-        Process p = null;
         int n = 0;
-        try {
-            p = Runtime.getRuntime().exec("getprop");
-            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String line;
-            int total = 0;
-            while ((line = br.readLine()) != null && total < 3000) {
-                total++;
-                if (kw.matcher(line).matches() && !line.contains("ril.") && !line.contains("dalvik.")) {
-                    if (n < 60) r.add(line.trim());
+        r.props = SysProps.readAll();
+        if (r.props.isEmpty()) r.add("getprop indisponible");
+        // d'abord les proprietes "persist.sys" (reglages de l'ecran), puis le reste
+        for (int pass = 0; pass < 2; pass++) {
+            for (java.util.Map.Entry<String, String> e : r.props.entrySet()) {
+                String k = e.getKey();
+                boolean first = k.startsWith("persist.sys.") || k.startsWith("persist.vendor.");
+                if ((pass == 0) != first) continue;
+                String line = "[" + k + "]: [" + e.getValue() + "]";
+                if (kw.matcher(line).matches() && !line.contains("ril.") && !line.contains("dalvik.")
+                        && !k.contains("fingerprint") && !k.startsWith("ro.product.") && !k.contains("boottime")) {
+                    if (n < 60) r.add(line);
                     n++;
                 }
             }
-            br.close();
-        } catch (Exception e) {
-            r.add("getprop indisponible : " + e.getMessage());
-        } finally {
-            if (p != null) p.destroy();
         }
         if (n == 0) r.add("(aucune)");
         else if (n > 60) r.add("… (" + (n - 60) + " autres)");
@@ -283,7 +301,7 @@ public final class HeadUnitProbe {
             if (ai == null || ai.sourceDir == null) continue;
             Set<String> found = new LinkedHashSet<String>();
             File apk = new File(ai.sourceDir);
-            scanApk(apk, found);
+            scanApk(apk, found, r.keys);
             // code pre-compile (odex/vdex) a cote de l'APK
             File oat = new File(apk.getParentFile(), "oat");
             File[] archs = oat.listFiles();
@@ -293,7 +311,7 @@ public final class HeadUnitProbe {
                     if (fs == null) continue;
                     for (File f : fs) {
                         String n = f.getName();
-                        if (n.endsWith(".odex") || n.endsWith(".vdex")) scanFile(f, found);
+                        if (n.endsWith(".odex") || n.endsWith(".vdex")) scanFile(f, found, r.keys);
                     }
                 }
             }
@@ -310,9 +328,21 @@ public final class HeadUnitProbe {
             }
         }
         if (r.actions.size() == before) r.add("(aucune chaîne d'action trouvée)");
+        r.add("");
+        r.add("== Clés de données (noms trouvés dans le code des applis du véhicule) ==");
+        if (r.keys.isEmpty()) {
+            r.add("(aucune)");
+        } else {
+            StringBuilder sb = new StringBuilder();
+            for (String k : r.keys) {
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(k);
+            }
+            r.add(sb.toString());
+        }
     }
 
-    private static void scanApk(File apk, Set<String> found) {
+    private static void scanApk(File apk, Set<String> found, Set<String> keys) {
         if (!apk.canRead()) return;
         ZipFile zf = null;
         try {
@@ -323,7 +353,7 @@ public final class HeadUnitProbe {
                 String n = ze.getName();
                 if (n.startsWith("classes") && n.endsWith(".dex") && ze.getSize() < 40L * 1024 * 1024) {
                     InputStream in = zf.getInputStream(ze);
-                    scanStream(in, found);
+                    scanStream(in, found, keys);
                     in.close();
                 }
             }
@@ -340,17 +370,17 @@ public final class HeadUnitProbe {
         }
     }
 
-    private static void scanFile(File f, Set<String> found) {
+    private static void scanFile(File f, Set<String> found, Set<String> keys) {
         if (!f.canRead() || f.length() > 60L * 1024 * 1024) return;
         try {
-            scanStream(new java.io.FileInputStream(f), found);
+            scanStream(new java.io.FileInputStream(f), found, keys);
         } catch (Throwable ignored) {
             // ignore
         }
     }
 
     /** Equivalent simplifie de la commande "strings" + filtre sur les actions. */
-    static void scanStream(InputStream in, Set<String> found) throws java.io.IOException {
+    static void scanStream(InputStream in, Set<String> found, Set<String> keys) throws java.io.IOException {
         byte[] buf = new byte[65536];
         StringBuilder sb = new StringBuilder();
         int n;
@@ -363,18 +393,43 @@ public final class HeadUnitProbe {
                     if (ok && sb.length() < 160) {
                         sb.append((char) c);
                     } else {
-                        if (sb.length() >= 10) consider(sb.toString(), found);
+                        flush(sb, found, keys);
                         sb.setLength(0);
                     }
                 }
             }
-            if (sb.length() >= 10) consider(sb.toString(), found);
+            flush(sb, found, keys);
         } finally {
             Files.closeQuietly(in);
         }
     }
 
-    static void consider(String s, Set<String> found) {
+    private static void flush(StringBuilder sb, Set<String> found, Set<String> keys) {
+        int len = sb.length();
+        if (len >= 10) consider(sb.toString(), found);
+        if (keys != null && len >= 3 && len <= 32) considerKey(sb.toString(), keys);
+    }
+
+    private static final String[] KEY_WORDS = {"door", "belt", "temp", "fan", "wind", "radar", "mileage", "odo",
+            "fuel", "oil", "batt", "volt", "wash", "speed", "rpm", "trunk", "hood", "reverse", "backcar", "aircon",
+            "air_", "light", "park"};
+    private static final Pattern KEY_RE = Pattern.compile("[A-Za-z][A-Za-z0-9_]{2,31}");
+    private static final Pattern METHOD_LIKE = Pattern.compile("(get|set|is|on|has|handle|update|send|show|init|m)[A-Z].*");
+
+    /** Noms de cles probables (ex. "door_fl", "outTemp") : aide a interpreter les donnees recues. */
+    public static void considerKey(String s, Set<String> keys) {
+        if (keys.size() >= 80 || !KEY_RE.matcher(s).matches() || METHOD_LIKE.matcher(s).matches()) return;
+        String low = s.toLowerCase(Locale.US);
+        for (String w : KEY_WORDS) {
+            if (low.contains(w)) {
+                // identifiants "style cle" : minuscules/underscore ou MAJUSCULES_AVEC_UNDERSCORE
+                if (s.equals(low) || s.matches("[A-Z0-9_]+") || s.contains("_")) keys.add(s);
+                return;
+            }
+        }
+    }
+
+    public static void consider(String s, Set<String> found) {
         if (found.size() >= 200 || s.length() > 100) return;
         if (!ACTION_RE.matcher(s).matches()) return;
         String low = s.toLowerCase(Locale.US);
@@ -389,7 +444,9 @@ public final class HeadUnitProbe {
         if (CLASS_LIKE.matcher(s).matches()) return;
         if (low.endsWith(".java") || low.endsWith(".xml") || low.endsWith(".png") || low.endsWith(".so")
                 || low.endsWith(".jpg") || low.endsWith(".json") || low.endsWith(".txt") || low.startsWith("android.support")
-                || low.startsWith("androidx.") || low.startsWith("java.") || low.startsWith("kotlin")) return;
+                || low.startsWith("androidx.") || low.startsWith("java.") || low.startsWith("kotlin")
+                || low.startsWith("persist.") || low.startsWith("ro.") || low.startsWith("sys.")
+                || low.startsWith("vendor.") || low.startsWith("debug.")) return;
         // les noms d'actions contiennent en general un segment en MAJUSCULES ou "action"
         boolean actionish = low.contains("action") || s.matches(".*\\.[A-Z0-9_]{3,}$") || low.contains("broadcast")
                 || low.contains("notify") || low.contains("change") || low.contains("update") || low.contains("status")
@@ -440,13 +497,23 @@ public final class HeadUnitProbe {
         else r.add("Note : ces ports sont réservés au système ; l'appli ne les lit pas pour ne pas gêner l'écran.");
     }
 
-    private static void bindKnown(final Context ctx, Report r) {
+    private static void bindKnown(final Context ctx, Report r, List<PackageInfo> pkgs) {
         r.add("");
-        r.add("== Services connus ==");
-        String[][] known = {
-                {"com.syu.ms", "com.syu.ms.toolkit"},
-                {"com.syu.canbus", "com.syu.canbus.toolkit"},
-        };
+        r.add("== Services du boîtier CAN ==");
+        List<String[]> known = new ArrayList<String[]>();
+        known.add(new String[]{"com.syu.ms", "com.syu.ms.toolkit", null});
+        known.add(new String[]{"com.syu.canbus", "com.syu.canbus.toolkit", null});
+        // services publics des applis CAN / vehicule (ex. com.can.services.CanService)
+        for (PackageInfo pi : pkgs) {
+            if (pi.services == null || pi.packageName.contains("bluetooth")) continue;
+            for (android.content.pm.ServiceInfo si : pi.services) {
+                String low = (pi.packageName + " " + si.name).toLowerCase(Locale.US);
+                if (si.exported && (low.contains("can") || low.contains("mcu") || low.contains("car"))
+                        && known.size() < 10) {
+                    known.add(new String[]{pi.packageName, null, si.name});
+                }
+            }
+        }
         int tried = 0;
         for (String[] k : known) {
             if (!r.packages.contains(k[0])) continue;
@@ -469,14 +536,16 @@ public final class HeadUnitProbe {
                     // rien
                 }
             };
-            Intent it = new Intent(k[1]);
-            it.setPackage(k[0]);
+            Intent it = k[1] != null ? new Intent(k[1]) : new Intent();
+            if (k[2] != null) it.setComponent(new ComponentName(k[0], k[2]));
+            else it.setPackage(k[0]);
+            String label = k[2] != null ? k[2] : k[1];
             boolean ok;
             try {
                 ok = ctx.getApplicationContext().bindService(it, conn, 0);
             } catch (Throwable t) {
                 ok = false;
-                r.add(k[1] + " : refusé (" + t.getClass().getSimpleName() + ")");
+                r.add(label + " : refusé (" + t.getClass().getSimpleName() + ")");
             }
             if (ok) {
                 try {
@@ -484,16 +553,17 @@ public final class HeadUnitProbe {
                 } catch (InterruptedException ignored) {
                     // ignore
                 }
-                r.add(k[1] + " : " + (desc[0] != null ? "joignable, interface " + desc[0] : "déclaré mais ne répond pas"));
+                r.add(label + " : " + (desc[0] != null ? "joignable, interface « " + desc[0] + " »"
+                        : "déclaré mais ne répond pas (service arrêté ?)"));
                 try {
                     ctx.getApplicationContext().unbindService(conn);
                 } catch (Throwable ignored) {
                     // ignore
                 }
             } else {
-                r.add(k[1] + " : non joignable");
+                r.add(label + " : non joignable");
             }
         }
-        if (tried == 0) r.add("(aucun service connu présent)");
+        if (tried == 0) r.add("(aucun service trouvé)");
     }
 }

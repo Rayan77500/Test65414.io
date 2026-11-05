@@ -329,7 +329,7 @@ public class SettingsPage extends Page implements DataRepository.Listener {
         LinearLayout about = Ui.card(a, "À propos");
         about.addView(Ui.text(a, "W204 Dash " + BuildInfo.VERSION + " — tableau de bord hors ligne, sans services Google.",
                 15, Theme.text2, Ui.REGULAR));
-        TextView ver = Ui.text(a, "Android " + android.os.Build.VERSION.RELEASE + " · écran "
+        TextView ver = Ui.text(a, BuildInfo.androidVersion() + " · écran "
                 + getResources().getDisplayMetrics().widthPixels + "×" + getResources().getDisplayMetrics().heightPixels
                 + " · échelle " + Math.round(Ui.scale * 100) + " %", 13, Theme.text3, Ui.REGULAR);
         ver.setPadding(0, Ui.dp(6), 0, 0);

@@ -29,8 +29,7 @@ public class App extends Application {
         instance = this;
         CrashLog.install(this);
         prefs = new Prefs(this);
-        DiagLog.i("App", "Demarrage W204 Dash " + BuildInfo.VERSION + " sur Android "
-                + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")");
+        DiagLog.i("App", "Démarrage W204 Dash " + BuildInfo.VERSION + " sur " + BuildInfo.androidVersion());
         repository = new DataRepository(this, prefs);
         media = new MediaHub(this);
         maintenance = new MaintenanceStore(this);

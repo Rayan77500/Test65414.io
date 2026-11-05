@@ -45,7 +45,9 @@ public class HeadUnitDataSource extends BaseSource {
     private final Map<String, Long> lastLogged = new HashMap<String, Long>();
     private int received;
     private int listening;
+    private volatile int propChanges;
     private String platform = "?";
+    private Thread watcher;
 
     public HeadUnitDataSource(String customActions) {
         this.customActions = customActions == null ? "" : customActions;
@@ -89,6 +91,7 @@ public class HeadUnitDataSource extends BaseSource {
             f.addAction(a);
         }
         listening = actions.size();
+        startPropertyWatcher();
         receiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -105,10 +108,48 @@ public class HeadUnitDataSource extends BaseSource {
         updateStatus();
     }
 
+    /**
+     * Surveille les proprietes systeme liees au vehicule (toutes les 3 s) et note
+     * chaque changement dans le journal : ouvrir une porte ou passer la marche
+     * arriere permet de voir ce que l'ecran expose.
+     */
+    private void startPropertyWatcher() {
+        if (watcher != null) return;
+        watcher = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                java.util.Map<String, String> prev = SysProps.vehicleOnly(SysProps.readAll());
+                DiagLog.i(TAG, "Surveillance de " + prev.size() + " propriété(s) système liée(s) au véhicule");
+                while (running) {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                    java.util.Map<String, String> cur = SysProps.vehicleOnly(SysProps.readAll());
+                    int logged = 0;
+                    for (java.util.Map.Entry<String, String> e : cur.entrySet()) {
+                        String old = prev.get(e.getKey());
+                        if (!e.getValue().equals(old) && logged < 15) {
+                            DiagLog.i(TAG, "Propriété modifiée : " + e.getKey() + " = " + e.getValue()
+                                    + (old == null ? " (nouvelle)" : " (avant : " + old + ")"));
+                            logged++;
+                            propChanges++;
+                        }
+                    }
+                    prev = cur;
+                    if (logged > 0) updateStatus();
+                }
+            }
+        }, "can-proprietes");
+        watcher.setDaemon(true);
+        watcher.start();
+    }
+
     private void updateStatus() {
         boolean known = platform != null && !platform.startsWith("inconnue");
         String s = "Plateforme : " + platform + " — " + listening + " broadcast(s) écouté(s), "
-                + received + " reçu(s)";
+                + received + " reçu(s)" + (propChanges > 0 ? ", " + propChanges + " propriété(s) modifiée(s)" : "");
         setState(received > 0 ? STATE_OK : (known ? STATE_CONNECTING : STATE_ERROR), s);
     }
 
@@ -171,6 +212,8 @@ public class HeadUnitDataSource extends BaseSource {
     @Override
     public void stop() {
         running = false;
+        if (watcher != null) watcher.interrupt();
+        watcher = null;
         if (receiver != null && ctx != null) {
             try {
                 ctx.unregisterReceiver(receiver);
@@ -192,12 +235,13 @@ public class HeadUnitDataSource extends BaseSource {
             report.line("  • " + p);
         }
         report.line("Broadcasts candidats trouvés : " + r.actions.size());
+        for (String v : r.verdict) report.line(v);
         if (running) report.line("Broadcasts reçus depuis le démarrage : " + received);
         if (r.packages.isEmpty()) {
             report.line("[X] Aucun boîtier CAN reconnu. Les données véhicule ne seront pas disponibles par l'écran.");
         } else {
-            report.line("→ Ouvrez/fermez une porte, puis regardez le journal dans Diagnostic :"
-                    + " chaque broadcast reçu y apparaît.");
+            report.line("-> Ouvrez/fermez une porte, passez la marche arrière, puis regardez le journal dans"
+                    + " Diagnostic : chaque broadcast reçu et chaque propriété modifiée y apparaissent.");
         }
         report.line("Le détail complet est dans l'écran Diagnostic.");
     }
