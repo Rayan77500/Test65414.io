@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">W204 Dash</string>
+    <string name="accessibility_label">W204 Dash – lecture des portes</string>
+    <string name="accessibility_desc">Lit uniquement les fenêtres affichées par l\'appli CAN de l\'écran (porte ouverte, coffre, capot) pour montrer leur état dans W204 Dash. Aucune autre application n\'est lue, rien n\'est envoyé sur Internet.</string>
+</resources>
