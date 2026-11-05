@@ -39,6 +39,25 @@ Interface `DataSource`, trois implémentations (+ une combinée) :
    `CanExtrasParser` interprète les extras (door, belt, temp, fan…).
 4. `CompositeDataSource` : OBD2 pour le moteur + écran pour le reste.
 
+### Écrans « Carocean / Yecon » (UIS8581, Mercedes W204)
+
+Analyse de l'appli CAN d'origine (`com.can.activity`, CaroceanBenzCanZH) :
+l'état des ouvrants vient du microcontrôleur via un `Messenger` Android.
+`McuDoorLink` fait la même chose :
+
+- liaison à l'action `com.carocean.mcuservice` (paquet `com.carocean.mcuserver`) ;
+- message `0x100` avec `Bundle{"cmdcode": int[]{0x12}}` et `replyTo` (désabonnement : `0x101`) ;
+- réception de messages `0x102` : `"cmdcode"` = `0x12`, `"data"` = octets ;
+  `data[3]` = masque `0x80` porte AVG, `0x40` AVD, `0x20` ARG, `0x10` ARD,
+  `0x08` coffre, `0x04` capot (1 = ouvert) ; `persist.sys.front.door` /
+  `persist.sys.rear.door` inversent gauche et droite.
+- Marche arrière : broadcasts `com.yecon.action.BACKCAR_START` / `BACKCAR_STOP`.
+- Sur cet écran, l'appli d'origine ne reçoit pas la clim ni les infos moteur
+  par cette voie (code présent mais non alimenté).
+
+Solution de secours : `CanWindowReader` (service d'accessibilité) lit la
+fenêtre « porte ouverte » affichée par l'appli CAN.
+
 Une valeur inconnue vaut `NaN` / `-1` et s'affiche « -- ».
 
 ## Modèle 3D

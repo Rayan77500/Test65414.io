@@ -43,6 +43,7 @@ public class UnitTests {
         headUnit();
         canWindow();
         exportFilter();
+        mcuDoors();
         System.out.println(passed + " verifications reussies, " + failed + " echec(s)");
         if (failed > 0) System.exit(1);
     }
@@ -320,6 +321,25 @@ public class UnitTests {
         } catch (Exception e) {
             check(false, "filtre d'export : " + e);
         }
+    }
+
+    /** Masque des ouvrants envoye par le microcontroleur (ecran Carocean/Yecon, canal 0x12). */
+    static void mcuDoors() {
+        byte[] d = {0x00, 0x00, 0x00, (byte) 0x88};
+        int[] st = com.rayan.w204dash.data.McuDoorLink.decode(d, false, false);
+        check(st != null && st[VehicleData.DOOR_FL] == 1 && st[VehicleData.TRUNK] == 1 && st[VehicleData.DOOR_FR] == 0
+                && st[VehicleData.HOOD] == 0, "MCU : porte AVG + coffre " + java.util.Arrays.toString(st));
+        st = com.rayan.w204dash.data.McuDoorLink.decode(new byte[]{0, 0, 0, 0x24}, false, false);
+        check(st[VehicleData.DOOR_RL] == 1 && st[VehicleData.HOOD] == 1 && st[VehicleData.DOOR_RR] == 0, "MCU : ARG + capot");
+        st = com.rayan.w204dash.data.McuDoorLink.decode(new byte[]{0, 0, 0, (byte) 0x90}, true, true);
+        check(st[VehicleData.DOOR_FR] == 1 && st[VehicleData.DOOR_FL] == 0 && st[VehicleData.DOOR_RL] == 1
+                && st[VehicleData.DOOR_RR] == 0, "MCU : inversion gauche/droite " + java.util.Arrays.toString(st));
+        st = com.rayan.w204dash.data.McuDoorLink.decode(new byte[]{0, 0, 0, 0}, false, false);
+        int sum = 0;
+        for (int v : st) sum += v;
+        check(sum == 0, "MCU : tout ferme");
+        check(com.rayan.w204dash.data.McuDoorLink.decode(new byte[]{1, 2}, false, false) == null, "MCU : message court");
+        check(com.rayan.w204dash.data.HeadUnitProbe.isVehiclePackage("com.carocean.mcuserver"), "paquet MCU detecte");
     }
 
     private static java.util.Set<String> tokensOf(String s) {

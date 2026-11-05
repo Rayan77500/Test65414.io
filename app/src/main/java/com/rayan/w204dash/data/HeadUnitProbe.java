@@ -50,7 +50,7 @@ public final class HeadUnitProbe {
             "can", "canbus", "canbox", "syu", "microntek", "hct", "mcu", "car", "carinfo", "carsetting",
             "carsettings", "carservice", "vehicle", "autochips", "nwd", "tw", "ts", "fyt", "topway", "zxw",
             "radar", "door", "climate", "hvac", "aircon", "bonovo", "joying", "kswin", "carlink", "decoder",
-            "canframe", "carstatus", "carstate", "obd"));
+            "canframe", "carstatus", "carstate", "obd", "carocean", "mcuserver", "mcuservice", "yecon"));
 
     private static final String[] ACTION_WORDS = {"door", "canbus", ".can.", "_can_", "can_", "radar", "belt",
             "aircon", "air_con", "climate", "hvac", "outtemp", "out_temp", "mileage", "odometer", "carinfo",
@@ -513,6 +513,7 @@ public final class HeadUnitProbe {
         List<String[]> known = new ArrayList<String[]>();
         known.add(new String[]{"com.syu.ms", "com.syu.ms.toolkit", null});
         known.add(new String[]{"com.syu.canbus", "com.syu.canbus.toolkit", null});
+        known.add(new String[]{McuDoorLink.SERVICE_PACKAGE, McuDoorLink.SERVICE_ACTION, null});
         // services publics des applis CAN / vehicule (ex. com.can.services.CanService)
         for (PackageInfo pi : pkgs) {
             if (pi.services == null || pi.packageName.contains("bluetooth")) continue;

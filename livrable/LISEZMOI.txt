@@ -92,11 +92,19 @@ source choisie. C'est normal, l'appli ne plante pas.
   volant et à la caméra de recul.
 
 
-6 bis) AFFICHER LES PORTES LUES PAR L'ÉCRAN (à faire une seule fois)
-------------------------------------------------------------------
-Votre écran affiche lui-même une image quand une porte s'ouvre. W204 Dash
-peut lire cette fenêtre pour connaître l'état des portes, du capot et
-du coffre :
+6 bis) PORTES, CAPOT ET COFFRE LUS PAR L'ÉCRAN
+---------------------------------------------
+Sur les écrans "Carocean / Yecon" (comme le vôtre), W204 Dash lit l'état
+des portes, du capot et du coffre directement auprès du microcontrôleur
+de l'écran, comme l'appli d'origine : il suffit de choisir la source
+"Écran" (ou "Les deux"). Rien d'autre à régler.
+- Ouvrez une porte : elle passe à "OUVERT" dans Véhicule > Ouvrants et
+  s'ouvre sur la voiture 3D.
+- Le Diagnostic indique "Microcontrôleur (portes) : OK..." quand ça marche.
+
+Solution de secours (si la ligne Microcontrôleur n'indique pas OK) :
+W204 Dash peut lire la fenêtre que l'écran affiche quand une porte
+s'ouvre :
 - Réglages > Source de données > "Écran" (ou "Les deux").
 - Touchez "Lire les portes affichées par l'écran".
 - Dans la liste Accessibilité d'Android, touchez

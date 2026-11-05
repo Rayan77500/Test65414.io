@@ -48,6 +48,7 @@ public class HeadUnitDataSource extends BaseSource {
     private volatile int propChanges;
     private String platform = "?";
     private Thread watcher;
+    private McuDoorLink mcu;
 
     public HeadUnitDataSource(String customActions) {
         this.customActions = customActions == null ? "" : customActions;
@@ -62,6 +63,9 @@ public class HeadUnitDataSource extends BaseSource {
     public void start(final Context c) {
         ctx = c.getApplicationContext();
         running = true;
+        // ecrans Carocean/Yecon : etat des portes lu directement aupres du microcontroleur
+        mcu = new McuDoorLink(ctx, data);
+        mcu.start();
         setState(STATE_CONNECTING, "Recherche du boîtier CAN de l'écran…");
         Thread t = new Thread(new Runnable() {
             @Override
@@ -217,12 +221,14 @@ public class HeadUnitDataSource extends BaseSource {
 
     @Override
     public String getStatus() {
-        return super.getStatus() + "\nLecture des fenêtres : " + CanWindowState.summary();
+        return super.getStatus() + (mcu != null ? "\nMicrocontrôleur (portes) : " + mcu.state() : "")
+                + "\nLecture des fenêtres : " + CanWindowState.summary();
     }
 
     @Override
     public void stop() {
         running = false;
+        if (mcu != null) mcu.stop();
         if (watcher != null) watcher.interrupt();
         watcher = null;
         if (receiver != null && ctx != null) {
@@ -246,6 +252,9 @@ public class HeadUnitDataSource extends BaseSource {
             report.line("  • " + p);
         }
         report.line("Broadcasts candidats trouvés : " + r.actions.size());
+        report.line("Microcontrôleur (portes) : " + (mcu != null ? mcu.state()
+                : (r.packages.contains(McuDoorLink.SERVICE_PACKAGE) ? "service présent (choisissez la source Écran)"
+                : "service non trouvé")));
         report.line("Lecture des fenêtres (accessibilité) : " + CanWindowState.summary());
         for (String v : r.verdict) report.line(v);
         if (running) report.line("Broadcasts reçus depuis le démarrage : " + received);
