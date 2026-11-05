@@ -86,17 +86,10 @@ source choisie. C'est normal, l'appli ne plante pas.
 - Touchez "Enregistrer" : un fichier w204dash_diagnostic_....txt est créé
   dans le dossier Téléchargements (Download). Envoyez-le-moi : il me
   permettra de brancher précisément les infos de VOTRE écran.
-- En haut du Diagnostic, la partie "Verdict" résume la situation. Si elle
-  indique "Boîtier CAN : semble DÉSACTIVÉ", l'écran ne reçoit pas les
-  infos de la voiture (portes, clim...). À vérifier :
-    a) Les boutons du volant (volume, piste suivante) marchent-ils avec
-       l'écran ? Si oui, un boîtier CAN est branché derrière l'écran.
-    b) Réglages de l'écran > Réglages d'usine (le code est affiché dans
-       le Verdict) > Canbus / Protocole : choisissez Mercedes Classe C
-       (W204) si c'est proposé. Notez ce qui était réglé avant, pour
-       pouvoir revenir en arrière.
-    c) S'il n'y a pas de boîtier CAN : l'adaptateur OBD2 (partie 5)
-       reste la solution pour le moteur.
+- En haut du Diagnostic, la partie "Verdict" résume ce que l'appli a
+  trouvé. Ne changez pas les réglages d'usine de l'écran (CAN Mode,
+  protocole...) sans me demander : ils servent aussi aux boutons du
+  volant et à la caméra de recul.
 
 
 7) REMPLACER LA VOITURE 3D

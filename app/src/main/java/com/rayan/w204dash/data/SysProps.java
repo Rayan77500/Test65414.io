@@ -77,11 +77,11 @@ public final class SysProps {
         if (fun != null || box != null) {
             boolean off = "0".equals(fun) || ("0".equals(box) && (type == null || "0".equals(type)));
             if (off) {
-                v.add("Boîtier CAN : semble DÉSACTIVÉ ou non configuré dans l'écran (fun.canbus=" + fun
-                        + ", can_box=" + box + ", can_car_type=" + type + ").");
-                v.add("  Dans cet état, l'écran ne reçoit pas les portes, ceintures ni la clim de la voiture.");
-                v.add("  À vérifier : réglages d'usine de l'écran > Canbus / Protocole CAN (choisir Mercedes Classe C"
-                        + " W204 si un boîtier CAN est branché derrière l'écran).");
+                v.add("Boîtier CAN : réglages internes à zéro (fun.canbus=" + fun + ", can_box=" + box
+                        + ", can_car_type=" + type + "). Selon les écrans, cela veut dire « désactivé » ou seulement"
+                        + " « premier type de boîtier » : ce n'est pas une preuve.");
+                v.add("  Indice fiable : si l'écran affiche lui-même une fenêtre quand on ouvre une porte ou qu'on"
+                        + " règle la clim, il reçoit bien les infos de la voiture.");
             } else {
                 v.add("Boîtier CAN : configuré (fun.canbus=" + fun + ", can_box=" + box + ", can_car_type=" + type + ").");
             }

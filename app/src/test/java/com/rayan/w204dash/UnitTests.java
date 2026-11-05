@@ -210,7 +210,7 @@ public class UnitTests {
         check(p.size() == 6 && "8888".equals(p.get("persist.sys.factory_password")), "lecture getprop");
         java.util.List<String> v = com.rayan.w204dash.data.SysProps.verdict(p);
         String all = v.toString();
-        check(all.contains("DÉSACTIVÉ"), "verdict boitier CAN desactive : " + all);
+        check(all.contains("fun.canbus=0") && all.contains("pas une preuve"), "verdict boitier CAN prudent : " + all);
         check(all.contains("8888"), "code d'usine");
         check(all.contains("Unisoc"), "processeur Unisoc");
         p.put("persist.sys.fun.canbus", "1");

@@ -143,6 +143,16 @@ public final class HeadUnitProbe {
                 break;
             }
         }
+        for (PackageInfo pi : pkgs) {
+            if (pi.services == null) continue;
+            for (android.content.pm.ServiceInfo si : pi.services) {
+                if (si.name.toLowerCase(Locale.US).contains("popwind")) {
+                    r.verdict.add("L'appli CAN de l'écran (" + pi.packageName + ") affiche ses propres fenêtres ("
+                            + si.name.substring(si.name.lastIndexOf('.') + 1) + ") : elle reçoit sans doute les infos"
+                            + " de la voiture, mais ne les diffuse peut-être pas aux autres applis.");
+                }
+            }
+        }
         List<String> head = new ArrayList<String>();
         head.add("== Verdict ==");
         if (r.verdict.isEmpty()) head.add("(rien de particulier)");
