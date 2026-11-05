@@ -274,6 +274,7 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
 
     // ------------------------------------------------------------ export appli CAN
     private static final long EXPORT_MAX = 70L * 1024 * 1024;
+    private static final long PART_SIZE = 24L * 1024 * 1024;
 
     /**
      * Copie l'appli CAN de l'ecran (APK, code precompile odex/vdex, bibliotheques
@@ -305,12 +306,27 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
                         String name = "w204dash_appli_can_"
                                 + new SimpleDateFormat("yyyyMMdd_HHmm", Locale.FRANCE).format(new Date()) + ".zip";
                         DiagLog.i("Diag", "Export de l'appli CAN : " + (z.length / 1024) + " Ko");
-                        saveBytes(name, "application/zip", z, new Runnable() {
+                        Runnable retry = new Runnable() {
                             @Override
                             public void run() {
                                 exportCanApp();
                             }
-                        });
+                        };
+                        if (z.length <= PART_SIZE) {
+                            saveBytes(name, "application/zip", z, retry);
+                        } else {
+                            // trop gros pour un envoi : decoupe en morceaux de 24 Mo (.001, .002...)
+                            int parts = (int) ((z.length + PART_SIZE - 1) / PART_SIZE);
+                            for (int i = 0; i < parts; i++) {
+                                int from = (int) (i * PART_SIZE);
+                                int len = (int) Math.min(PART_SIZE, z.length - from);
+                                byte[] part = new byte[len];
+                                System.arraycopy(z, from, part, 0, len);
+                                saveBytes(name + String.format(Locale.US, ".%03d", i + 1), "application/octet-stream",
+                                        part, retry);
+                            }
+                            act.toast("Export découpé en " + parts + " morceaux (.001, .002…) : envoyez-les tous");
+                        }
                     }
                 });
             }
@@ -343,7 +359,8 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
                     .append("  APK : ").append(ai.sourceDir).append('\n')
                     .append("  bibliothèques : ").append(ai.nativeLibraryDir).append('\n');
             File apk = new File(ai.sourceDir);
-            files += addFile(zos, apk, pkg + "/" + apk.getName(), total);
+            // seulement le code et les mises en page (pas les images, trop lourdes)
+            files += addApkCode(zos, apk, pkg + "/apk", total);
             File dir = apk.getParentFile();
             if (dir != null) {
                 files += addTree(zos, new File(dir, "oat"), pkg + "/oat", total, 0);
@@ -362,6 +379,59 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         return bos.toByteArray();
     }
 
+    private static final long ONE_MB = 1024L * 1024;
+
+    /** Fichiers utiles a l'analyse : code (dex/odex/vdex), bibliotheques natives moyennes, petits fichiers. */
+    static boolean keepForAnalysis(String name, long size) {
+        String n = name.toLowerCase(Locale.US);
+        if (n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".webp") || n.endsWith(".gif")
+                || n.endsWith(".mp3") || n.endsWith(".mp4") || n.endsWith(".ogg") || n.endsWith(".wav") || n.endsWith(".ttf")
+                || n.endsWith(".otf") || n.endsWith(".art") || n.endsWith(".9.png")) return false;
+        if (n.endsWith(".dex") || n.endsWith(".odex") || n.endsWith(".vdex")) return size < 40 * ONE_MB;
+        if (n.endsWith(".so")) return size < 4 * ONE_MB;
+        if (n.equals("androidmanifest.xml") || n.equals("resources.arsc")) return size < 12 * ONE_MB;
+        if (n.startsWith("res/layout") || n.startsWith("res/xml")) return true;
+        if (n.startsWith("res/")) return false;
+        return size < ONE_MB;
+    }
+
+    private static int addApkCode(java.util.zip.ZipOutputStream zos, File apk, String prefix, long[] total) {
+        int n = 0;
+        java.util.zip.ZipFile zf = null;
+        try {
+            zf = new java.util.zip.ZipFile(apk);
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> en = zf.entries();
+            byte[] buf = new byte[65536];
+            while (en.hasMoreElements()) {
+                java.util.zip.ZipEntry ze = en.nextElement();
+                if (ze.isDirectory() || !keepForAnalysis(ze.getName(), ze.getSize())) continue;
+                if (total[0] + ze.getSize() > EXPORT_MAX) continue;
+                zos.putNextEntry(new java.util.zip.ZipEntry(prefix + "/" + ze.getName()));
+                java.io.InputStream in = zf.getInputStream(ze);
+                try {
+                    int k;
+                    while ((k = in.read(buf)) > 0) zos.write(buf, 0, k);
+                } finally {
+                    Files.closeQuietly(in);
+                }
+                zos.closeEntry();
+                total[0] += Math.max(0, ze.getSize());
+                n++;
+            }
+        } catch (Exception e) {
+            DiagLog.e("Diag", "Lecture de " + apk, e);
+        } finally {
+            if (zf != null) {
+                try {
+                    zf.close();
+                } catch (Exception ignored) {
+                    // ignore
+                }
+            }
+        }
+        return n;
+    }
+
     private static int addTree(java.util.zip.ZipOutputStream zos, File dir, String prefix, long[] total, int depth)
             throws java.io.IOException {
         File[] fs = dir.listFiles();
@@ -369,7 +439,7 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         int n = 0;
         for (File f : fs) {
             if (f.isDirectory()) n += addTree(zos, f, prefix + "/" + f.getName(), total, depth + 1);
-            else n += addFile(zos, f, prefix + "/" + f.getName(), total);
+            else if (keepForAnalysis(f.getName(), f.length())) n += addFile(zos, f, prefix + "/" + f.getName(), total);
         }
         return n;
     }

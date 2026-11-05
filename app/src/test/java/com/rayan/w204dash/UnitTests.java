@@ -42,6 +42,7 @@ public class UnitTests {
         demo();
         headUnit();
         canWindow();
+        exportFilter();
         System.out.println(passed + " verifications reussies, " + failed + " echec(s)");
         if (failed > 0) System.exit(1);
     }
@@ -295,6 +296,30 @@ public class UnitTests {
         com.rayan.w204dash.data.CanWindowState.windowGone();
         com.rayan.w204dash.data.CanWindowState.fill(d = new VehicleData());
         check(d.open[VehicleData.DOOR_FL] == 0 && d.open[VehicleData.TRUNK] == 0, "fenetre fermee = tout ferme");
+    }
+
+    /** Export de l'appli CAN : on garde le code, pas les images (envoi < 30 Mo). */
+    static void exportFilter() {
+        try {
+            java.lang.reflect.Method m = com.rayan.w204dash.ui.DiagnosticPage.class
+                    .getDeclaredMethod("keepForAnalysis", String.class, long.class);
+            m.setAccessible(true);
+            long mb = 1024L * 1024;
+            Object[][] cases = {
+                    {"classes.dex", 6 * mb, true}, {"classes2.dex", 3 * mb, true}, {"AndroidManifest.xml", 20000L, true},
+                    {"resources.arsc", 2 * mb, true}, {"res/layout/can_pop_door.xml", 3000L, true},
+                    {"res/drawable-hdpi/car_door_fl.png", 40000L, false}, {"res/raw/beep.ogg", 9000L, false},
+                    {"res/drawable/bg.xml", 500L, false}, {"lib/arm64-v8a/libserial_port.so", 30000L, true},
+                    {"lib/arm64-v8a/libhuge.so", 9 * mb, false}, {"assets/car/benz_c.png", 300000L, false},
+                    {"assets/canbus_config.json", 20000L, true}, {"base.vdex", 12 * mb, true}, {"base.odex", 8 * mb, true},
+                    {"base.art", 2 * mb, false}, {"assets/video.mp4", 50000L, false}};
+            for (Object[] c : cases) {
+                boolean r = (Boolean) m.invoke(null, c[0], c[1]);
+                check(r == (Boolean) c[2], "export : " + c[0] + " -> " + r);
+            }
+        } catch (Exception e) {
+            check(false, "filtre d'export : " + e);
+        }
     }
 
     private static java.util.Set<String> tokensOf(String s) {
