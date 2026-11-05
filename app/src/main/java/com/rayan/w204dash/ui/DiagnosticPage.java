@@ -64,20 +64,30 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
                 addAction();
             }
         });
-        addBtn(bar, Icons.FOLDER, "Exporter l'appli CAN", new OnClickListener() {
+        LinearLayout bar2 = Ui.row(a);
+        scanBtn = addBtn(bar2, Icons.RADAR, "Écouter le microcontrôleur (60 s)", new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                scanMcu();
+            }
+        });
+        addBtn(bar2, Icons.FOLDER, "Exporter l'appli CAN", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 exportCanApp();
             }
         });
-        addBtn(bar, Icons.TRASH, "Effacer le journal", new OnClickListener() {
+        addBtn(bar2, Icons.TRASH, "Effacer le journal", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 DiagLog.clear();
                 log.setText("");
             }
         });
-        root.addView(bar, Ui.lp(-1, Ui.dp(60)));
+        root.addView(bar, Ui.lp(-1, Ui.dp(56)));
+        LinearLayout.LayoutParams b2 = Ui.lp(-1, Ui.dp(56));
+        b2.topMargin = Ui.dp(8);
+        root.addView(bar2, b2);
 
         LinearLayout cols = Ui.row(a);
         cols.setGravity(android.view.Gravity.TOP);
@@ -105,10 +115,43 @@ public class DiagnosticPage extends Page implements DiagLog.Listener {
         addView(root, new FrameLayout.LayoutParams(-1, -1));
     }
 
-    private void addBtn(LinearLayout bar, int icon, String label, OnClickListener l) {
+    private LinearLayout addBtn(LinearLayout bar, int icon, String label, OnClickListener l) {
         LinearLayout.LayoutParams lp = Ui.weight(1, true);
         if (bar.getChildCount() > 0) lp.leftMargin = Ui.dp(10);
-        bar.addView(Ui.button(getContext(), icon, label, l), lp);
+        LinearLayout b = Ui.button(getContext(), icon, label, l);
+        bar.addView(b, lp);
+        return b;
+    }
+
+    private LinearLayout scanBtn;
+
+    /**
+     * Ecoute de tous les canaux du microcontroleur pendant 60 s : l'utilisateur
+     * regle la clim, ouvre une porte... et le journal montre quel canal bouge.
+     */
+    private void scanMcu() {
+        if (com.rayan.w204dash.data.McuScanner.isRunning()) {
+            act.toast("Écoute déjà en cours");
+            return;
+        }
+        boolean ok = new com.rayan.w204dash.data.McuScanner(getContext()).start(60,
+                new com.rayan.w204dash.data.McuScanner.Done() {
+                    @Override
+                    public void onDone(String summary) {
+                        if (scanBtn != null) scanBtn.setAlpha(1f);
+                        act.toast("Écoute terminée : touchez « Enregistrer » et envoyez le fichier");
+                        // la lecture des portes reprend son abonnement
+                        String s = App.get().prefs().source();
+                        if (Prefs.SRC_CAN.equals(s) || Prefs.SRC_OBD_CAN.equals(s)) App.get().repository().restartSource();
+                    }
+                });
+        if (ok) {
+            if (scanBtn != null) scanBtn.setAlpha(0.5f);
+            act.toast("Écoute 60 s : réglez la clim (température, ventilation, A/C), ouvrez une porte, "
+                    + "affichez le kilométrage / l'essence sur l'écran…");
+        } else {
+            act.toast("Microcontrôleur introuvable sur cet écran");
+        }
     }
 
     private String header() {

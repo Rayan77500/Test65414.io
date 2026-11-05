@@ -116,6 +116,14 @@ s'ouvre :
   fichier (il contient la description de la fenêtre de l'écran).
 
 
+6 quater) ÉCOUTER LE MICROCONTRÔLEUR (pour trouver clim, km, essence)
+--------------------------------------------------------------------
+Diagnostic > "Écouter le microcontrôleur (60 s)". Pendant ces 60 s :
+changez la température de la clim, la ventilation, A/C marche/arrêt,
+ouvrez une porte, affichez le kilométrage / l'essence sur l'écran.
+Puis "Enregistrer" et envoyez-moi le fichier.
+
+
 6 ter) EXPORTER L'APPLI CAN DE L'ÉCRAN (pour analyse)
 -----------------------------------------------------
 Diagnostic > "Exporter l'appli CAN" : un fichier

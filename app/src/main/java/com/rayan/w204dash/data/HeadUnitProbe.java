@@ -221,6 +221,23 @@ public final class HeadUnitProbe {
         List<PackageInfo> all = pm.getInstalledPackages(0);
         r.add(all.size() + " applications installées au total");
         List<PackageInfo> out = new ArrayList<PackageInfo>();
+        // applis "constructeur" : ni Android standard, ni Google
+        List<String> oem = new ArrayList<String>();
+        for (PackageInfo pi : all) {
+            String n = pi.packageName;
+            if (n.startsWith("com.android.") || n.startsWith("com.google.") || n.startsWith("android")
+                    || n.equals(ctx.getPackageName()) || n.startsWith("com.qualcomm.") || n.startsWith("org.chromium")) {
+                continue;
+            }
+            oem.add(n);
+        }
+        java.util.Collections.sort(oem);
+        StringBuilder ob = new StringBuilder();
+        for (String n : oem) {
+            if (ob.length() > 0) ob.append(", ");
+            ob.append(n);
+        }
+        r.add("Applis du constructeur / installées (" + oem.size() + ") : " + ob);
         int flags = PackageManager.GET_SERVICES | PackageManager.GET_RECEIVERS | PackageManager.GET_PROVIDERS;
         for (PackageInfo pi : all) {
             if (pi.packageName.equals(ctx.getPackageName()) || !isVehiclePackage(pi.packageName)) continue;

@@ -55,8 +55,19 @@ public class CanWindowReader extends AccessibilityService {
         }
     }
 
+    private String lastWindowPkg = "";
+    private int windowLogs;
+
     private void handle(AccessibilityEvent e) {
         CharSequence pkg = e.getPackageName();
+        // quelle appli affiche une fenetre ? (nom seulement, sans contenu)
+        if (pkg != null && e.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                && !pkg.toString().equals(lastWindowPkg) && !pkg.toString().startsWith("com.rayan.")
+                && windowLogs < 120) {
+            lastWindowPkg = pkg.toString();
+            windowLogs++;
+            DiagLog.i(TAG, "Fenêtre affichée par " + pkg + (e.getClassName() != null ? " (" + e.getClassName() + ")" : ""));
+        }
         if (isCanPackage(pkg)) {
             AccessibilityNodeInfo root = rootOf(e.getSource());
             if (root == null && Build.VERSION.SDK_INT >= 21) root = canRoot();
